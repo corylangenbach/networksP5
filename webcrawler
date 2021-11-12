@@ -1,0 +1,6 @@
+#!/bin/sh
+# make the python script executable
+chmod +x webcrawler.py
+
+# execute with command arguments
+./webcrawler.py "$@"
