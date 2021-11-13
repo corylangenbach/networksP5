@@ -9,12 +9,16 @@ from bs4 import BeautifulSoup
 
 HTTP_VER = "HTTP/1.1"
 # HTTP_VER = "HTTP/1.0"
-
 HOST = "fakebook.3700.network"
 visted_pages = set()
-
 COOKIE = ''
 SESSION_ID = ''
+GET = 'GET'
+POST = 'POST'
+
+parser = argparse.ArgumentParser()
+parser.add_argument('username', action='store', type=str, help='username for webcrawler login')
+parser.add_argument('password', action='store', type=str, help='password for webcrawler login')
 
 class RequestHeader:
     def __init__(self, method, path, cookie=None):
@@ -52,10 +56,6 @@ class RequestHeader:
         return method_line + request_fields
 
 
-GET = 'GET'
-POST = 'POST'
-
-
 def format_get_request(path):
     get_req = RequestHeader(GET, path, cookie=COOKIE)
     return get_req.format_request()
@@ -80,7 +80,6 @@ def get_cookie(soup):
 
 def connect():
     hostname = "fakebook.3700.network"
-    # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s = socket.create_connection((hostname, 443))
     context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     s = context.wrap_socket(s, server_hostname=hostname)
@@ -110,10 +109,7 @@ def login_page_get(s, login):
     # print(COOKIE, csrfmiddlewaretoken)
     return soup_recv, csrfmiddlewaretoken
 
-def send_creds(s, login, middleware_token):
-    # TODO: get username and password from cmd line
-    username = "nzukie.b"
-    password = "UX7S0C5ZVG1H3UPK"
+def send_creds(s, login, username, password, middleware_token):
     post_request = format_post_request(login, username, password, middleware_token)
     # print(post_request)
     s.sendall(post_request.encode())
@@ -121,25 +117,30 @@ def send_creds(s, login, middleware_token):
     soup_recv = BeautifulSoup(data_back_post, 'html.parser')
     return soup_recv
 
-
-def login():
+def login(username, password):
     # connect to fakebook
     s = connect()
     # send get to root, get login link
     login = initial_get(s)
     # send get to login link
     login_recv, csrfmiddlewaretoken = login_page_get(s, login)
-    login_response = send_creds(s, login, csrfmiddlewaretoken)
-    #  Update cookies with provided sessionid
+    login_response = send_creds(s, login, username, password, csrfmiddlewaretoken)
+    #  Update cookies adn session_id
     get_cookie(login_response)
-    print(COOKIE)
-    print(SESSION_ID)
-    # print(login_response)
+    if COOKIE and SESSION_ID:
+        print(f'Login Successful.\n{COOKIE}\n{SESSION_ID}')
+        return True
+    return False
 
-def crawl():
-    login()
-    #print("logged in", msg_back.head)
-    #print("loggined in", msg_back)
+def crawl(username, password):
+    login(username, password)
 
 if __name__ == "__main__":
-    crawl()
+    args = parser.parse_args()
+    username, password = args.username, args.password
+    # print(username, password)
+    if not username or password:
+        # 
+        username = "nzukie.b"
+        password = "UX7S0C5ZVG1H3UPK"
+    crawl(username, password)
