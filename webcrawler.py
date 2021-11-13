@@ -30,7 +30,7 @@ class RequestHeader:
     def format_request(self):
         method_line = f'{self.method} {self.path} {self.http_ver}\r\n'
         if self.method == POST:
-            # TODO Content-Length should be
+            # NOTE: Content-length should be number of chars in body e.g. len(username=...&password=...&etc)
             request_fields = f'Host: {self.host}\r\n'\
                 f'Connection: {self.connection}\r\n'\
                 'Upgrade-Insecure-Requests: 1\r\n'\
