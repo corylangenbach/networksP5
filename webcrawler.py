@@ -33,24 +33,18 @@ class RequestHeader:
 
     def format_request(self):
         method_line = f'{self.method} {self.path} {self.http_ver}\r\n'
+        request_fields =    f'Host: {self.host}\r\n'\
+                            f'Connection: {self.connection}\r\n'\
+                            "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n"\
+                            'Upgrade-Insecure-Requests: 1\r\n'\
+                            'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36\r\n'\
+                            'Accept-Language: en-US,en;q=0.9,fr;q=0.8\r\n'\
+
         if self.method == POST:
             # NOTE: Content-length should be number of chars in body e.g. len(username=...&password=...&etc)
-            request_fields = f'Host: {self.host}\r\n'\
-                f'Connection: {self.connection}\r\n'\
-                'Upgrade-Insecure-Requests: 1\r\n'\
-                'Origin: https://fakebook.3700.network\r\n'\
+            request_fields += 'Origin: https://fakebook.3700.network\r\n'\
                 f'Content-Length: {self.content_length}\r\n'\
                 'Content-Type: application/x-www-form-urlencoded\r\n'\
-                'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36\r\n'\
-                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n'\
-                'Accept-Language: en-US,en;q=0.9,fr;q=0.8\r\n'\
-                f'Cookie: {self.cookie}'
-        elif self.method == GET:
-            request_fields = f'Host: {self.host}\r\n'\
-                f'Connection: {self.connection}\r\n'\
-                "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n"\
-                "DNT: 1\r\n"\
-                'Upgrade-Insecure-Requests: 1\r\n'\
                 f'Cookie: {self.cookie}'
         request_fields += "\r\n\r\n"
         return method_line + request_fields
@@ -69,14 +63,12 @@ def format_post_request(path, username, password, csrfmiddlewaretoken):
 def get_cookie(soup):
     """Handles updating Cookie and sessionid with values provided from set-cookie"""
     global COOKIE, SESSION_ID
-    token = re.search(r'csrftoken=.*', str(soup))
-    if token:
-        temp = re.split(r'\r\n', token.group())[0].strip().split(';')
-        COOKIE = temp[0]
-        session_id = re.search(r'sessionid=.*', str(soup))
-        if session_id:
-            SESSION_ID = session_id.group().strip().split(';')[0]
-        return COOKIE
+    cookie = re.search(r'csrftoken=.*', str(soup))
+    session_id = re.search(r'sessionid=.*', str(soup))
+    if cookie:
+        COOKIE = cookie.group().strip().split(';')[0]
+    if session_id:
+        SESSION_ID = session_id.group().strip().split(';')[0]
 
 def connect():
     hostname = "fakebook.3700.network"
@@ -127,20 +119,20 @@ def login(username, password):
     login_response = send_creds(s, login, username, password, csrfmiddlewaretoken)
     #  Update cookies adn session_id
     get_cookie(login_response)
+    # print(login_response)
     if COOKIE and SESSION_ID:
         print(f'Login Successful.\n{COOKIE}\n{SESSION_ID}')
         return True
     return False
 
 def crawl(username, password):
-    login(username, password)
+    if login(username, password):
+        pass
 
 if __name__ == "__main__":
     args = parser.parse_args()
     username, password = args.username, args.password
-    # print(username, password)
-    if not username or password:
-        # 
+    if not username or not password:
         username = "nzukie.b"
         password = "UX7S0C5ZVG1H3UPK"
     crawl(username, password)
