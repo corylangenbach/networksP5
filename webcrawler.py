@@ -70,13 +70,18 @@ def send_get_request(sock, path):
     """Sends a get request to the provide path updates cookies and secret_flag if present in response"""
     request = format_get_request(path)
     print(f'SENDING: {request}')
-    sock.sendall(request.encode())
-    data = sock.recv(8192)
-    soup = BeautifulSoup(data, 'html.parser')
-    print(f'RECIEVING: {soup}')
-    get_cookie(soup)
-    search_for_flag(soup)
-    return soup
+    while True:
+        try:
+            sock.sendall(request.encode())
+            data = sock.recv(8192)
+            soup = BeautifulSoup(data, 'html.parser')
+            get_cookie(soup)
+            search_for_flag(soup)
+            break
+        except ssl.SSLZeroReturnError as e:
+            print(f'ERROR SOCKET CLOSED: {e}. REOPENING')
+            sock = connect()
+    return soup, sock
 
 
 def get_cookie(soup):
@@ -129,7 +134,7 @@ def initial_get(s):
     return login
 
 def login_page_get(s, login):
-    soup_recv = send_get_request(s, login)
+    soup_recv, s = send_get_request(s, login)
     csrfmiddlewaretoken = soup_recv.find("input", {"name": "csrfmiddlewaretoken"})["value"]
     # print(COOKIE, csrfmiddlewaretoken)
     return soup_recv, csrfmiddlewaretoken
@@ -177,7 +182,7 @@ def validate_response(response, s, path):
         # print(f'new_url: {new_url}')
         # new_url = new_url[9::]
         print(f'NEW URL: {new_url}')
-        soup_recv = send_get_request(s, new_url)
+        soup_recv, s = send_get_request(s, new_url)
         response = validate_response(soup_recv, s, new_url)
         print(f'302 response resolved: {response}')
         VISITED_PAGES.add(new_url)
@@ -187,7 +192,7 @@ def validate_response(response, s, path):
     # if get 500 error
     if response_code == "500":
         print(f'500 response: {response}')
-        soup_recv = send_get_request(s, path)
+        soup_recv, s = send_get_request(s, path)
         response = validate_response(soup_recv, s, path)
         print(f'500 response resolved: {response}')
     
@@ -213,28 +218,28 @@ def crawl(username, password):
         print(f'VISITED_PAGES1: {VISITED_PAGES}')
         links_to_search.update(new_links)
         print(f'LINKS_TO_SEARCH1: {links_to_search}')
-        while True:
+        while links_to_search:
             links_seen = set()
             # BFS
             for path in links_to_search:
                 if path not in VISITED_PAGES:
                     print(f'CHECKING PATH: {path}')
-                    soup_recv = send_get_request(s, path)
+                    soup_recv, s = send_get_request(s, path)
                     soup_recv = validate_response(soup_recv, s, path)
                     if soup_recv:
                         new_links = get_links_on_page(soup_recv)
                         links_seen.update(new_links)
                     VISITED_PAGES.add(path)
-                # print(f'new_links: {new_links}')
-                # print(f'VISITED_PAGES: {VISITED_PAGES}')
-                # print(f'LINKS_ SEEN: {links_seen}')
+                    if len(FOUND_FLAGS) == 5:
+                        links_seen.clear()
+                        links_to_search.clear()
+                        break
             # All previously found links have been searched
             links_to_search.clear()
             # Update links_to_search with new found links
             links_to_search.update(links_seen)
-            if len(FOUND_FLAGS) == 5:
-                print(FOUND_FLAGS)
-                break
+            continue
+    print(f'FINAL: {FOUND_FLAGS}')
 
 if __name__ == "__main__":
     args = parser.parse_args()
