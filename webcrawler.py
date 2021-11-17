@@ -44,15 +44,14 @@ class RequestHeader:
                             "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n"\
                             'Upgrade-Insecure-Requests: 1\r\n'\
                             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36\r\n' \
-                            f'Cookie: {self.cookie}; {self.session_id}\r\n'\
-                            'Accept-Language: en-US,en;q=0.9,fr;q=0.8'
+                            'Accept-Language: en-US,en;q=0.9,fr;q=0.8\r\n'\
+                            f'Cookie: {self.cookie}; {self.session_id}'\
 
         if self.method == POST:
             # NOTE: Content-length should be number of chars in body e.g. len(username=...&password=...&etc)
             request_fields += '\r\nOrigin: https://fakebook.3700.network\r\n'\
                 f'Content-Length: {self.content_length}\r\n'\
-                'Content-Type: application/x-www-form-urlencoded\r\n'\
-                f'Cookie: {self.cookie}; {self.session_id}'
+                'Content-Type: application/x-www-form-urlencoded'
         request_fields += "\r\n\r\n"
         return method_line + request_fields
 
@@ -95,7 +94,7 @@ def search_for_flag(soup):
     flag = soup.find("h2", {"class": "secret_flag"})
     if flag:
         FOUND_FLAGS.add(flag.text)
-        print(f'FOUND FLAG: {flag}')
+        print(f'FLAG: {flag}, {FOUND_FLAGS}')
     
 def get_links_on_page(soup):
     """Returns a set of links to the other pages of the site from the provided page"""
@@ -121,6 +120,7 @@ def initial_get(s):
     s.sendall(get_request.encode())
     data_back = s.recv(4096)
     soup = BeautifulSoup(data_back, 'html.parser')
+    login = '/login'
     for anchor in soup.find_all('a'):
         if "Log in" in anchor.string:
             login = anchor.get("href")
@@ -129,7 +129,7 @@ def initial_get(s):
     return login
 
 def login_page_get(s, login):
-    send_get_request(s, login)
+    soup_recv = send_get_request(s, login)
     csrfmiddlewaretoken = soup_recv.find("input", {"name": "csrfmiddlewaretoken"})["value"]
     # print(COOKIE, csrfmiddlewaretoken)
     return soup_recv, csrfmiddlewaretoken
@@ -195,6 +195,7 @@ def validate_response(response, s, path):
     return correct_data_back
 
 def crawl(username, password):
+    global FOUND_FLAGS
     s = connect()
     #global VISITED_PAGES
     #Navigate to login page and send post request
@@ -234,46 +235,6 @@ def crawl(username, password):
             if len(FOUND_FLAGS) == 5:
                 print(FOUND_FLAGS)
                 break
-
-        # while len(links_to_search) > 0:
-        #     path = links_to_search.pop()
-        #     request = format_get_request(path)
-        #     s.sendall(request.encode())
-        #     soup_recv = BeautifulSoup(s.recv(8192), 'html.parser')
-        #     new_links = get_links_on_page(soup_recv)
-        #     links_seen.update(new_links)
-        #     search_for_flag(soup_recv)
-        #     VISITED_PAGES.add(path)
-
-        #     # pop the last element off list, search it, put it in visited list
-        #     path = links_seen.pop()
-        #     print("sending get request", path)
-        #     if path not in VISITED_PAGES:
-        #         VISITED_PAGES.add(path)
-        #         new_request = format_get_request(path)
-        #         s.sendall(new_request.encode())
-        #         data = s.recv(8192)
-        #         data_pretty = BeautifulSoup(data, 'html.parser')
-        #         data_pretty, s = validate_response(data_pretty, s, path)
-        #         if data_pretty:
-        #             get_cookie(data_pretty)
-        #             # add new found links if not already visited and valid
-        #             #print("found page", data_pretty)
-        #             for anchor in data_pretty.find_all('a'):
-        #                 if anchor.get("href") not in VISITED_PAGES and anchor.get("href")[0:1] == "/":
-        #                     print("adding to search list", anchor)
-        #                     links_seen.append(anchor.get("href"))
-        #             # check for secret flags
-        #             flag = data_pretty.find("h2", {"class": "secret_flag"})
-        #             if flag:
-        #                 print("found a flag!")
-        #                 FOUND_FLAGS.add(flag.getText())
-        #                 if len(FOUND_FLAGS) == 5:
-        #                     break
-        #         else:
-        #             VISITED_PAGES.add(path)
-        # print("flags: ", FOUND_FLAGS)
-
 
 if __name__ == "__main__":
     args = parser.parse_args()
