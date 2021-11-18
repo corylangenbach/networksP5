@@ -18,12 +18,13 @@ POST = 'POST'
 FOUND_FLAGS = set()
 PAGES_TO_VIST = set()
 
-f = open('log.txt', 'w')
-sys.stdout = f
+#f = open('log.txt', 'w')
+#sys.stdout = f
 
 parser = argparse.ArgumentParser()
 parser.add_argument('username', action='store', type=str, help='username for webcrawler login')
 parser.add_argument('password', action='store', type=str, help='password for webcrawler login')
+
 
 class RequestHeader:
     def __init__(self, method, path, cookie=None, session_id=None):
@@ -37,7 +38,7 @@ class RequestHeader:
         self.cookie = cookie
         self.session_id = session_id
 
-       def format_request(self):
+    def format_request(self):
         method_line = '{method} {path} {http_ver}\r\n'.format(method=self.method, path=self.path, http_ver=HTTP_VER)
         request_fields =    'Host: {host}\r\n'\
                             'Connection: {connection}\r\n'\
@@ -46,7 +47,7 @@ class RequestHeader:
                             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36\r\n' \
                             'Accept-Language: en-US,en;q=0.9,fr;q=0.8\r\n'\
                             'Cookie: {cookie}; {session_id}'\
-        
+
         #Line above must be empty
         request_fields = request_fields.format(host=self.host, connection=self.connection, cookie=self.cookie, session_id=self.session_id)
         if self.method == POST:
@@ -63,16 +64,18 @@ def format_get_request(path):
     get_req = RequestHeader(GET, path, cookie=COOKIE, session_id=SESSION_ID)
     return get_req.format_request()
 
+
 def format_post_request(path, username, password, csrfmiddlewaretoken):
     post_header = RequestHeader(POST, path, cookie=COOKIE)
-    post_body = f"username={username}&password={password}&csrfmiddlewaretoken={csrfmiddlewaretoken}&next=\r\n\r\n"
+    post_body = "username={username}&password={password}&csrfmiddlewaretoken={csrfmiddlewaretoken}&next=\r\n\r\n"
+    post_body = post_body.format(username=username, password=password, csrfmiddlewaretoken=csrfmiddlewaretoken)
     post_header.content_length = len(post_body)
     return post_header.format_request() + post_body
 
 def send_get_request(sock, path):
     """Sends a get request to the provide path updates cookies and secret_flag if present in response"""
     request = format_get_request(path)
-    print(f'SENDING: {request}')
+    #print(f'SENDING: {request}')
     while True:
         try:
             sock.sendall(request.encode())
@@ -82,7 +85,7 @@ def send_get_request(sock, path):
             search_for_flag(soup)
             break
         except ssl.SSLZeroReturnError as e:
-            print(f'ERROR SOCKET CLOSED: {e}. REOPENING')
+            #print(f'ERROR SOCKET CLOSED: {e}. REOPENING')
             sock = connect()
     return soup, sock
 
@@ -102,7 +105,7 @@ def search_for_flag(soup):
     flag = soup.find("h2", {"class": "secret_flag"})
     if flag:
         FOUND_FLAGS.add(flag.text)
-        print(f'FLAG: {flag}, {FOUND_FLAGS}')
+        #print(f'FLAG: {flag}, {FOUND_FLAGS}')
     
 def get_links_on_page(soup):
     """Returns a set of links to the other pages of the site from the provided page"""
@@ -163,7 +166,7 @@ def login(s, username, password):
     response = validate_response(login_response, s, login)
     # print(login_response)
     if COOKIE and SESSION_ID:
-        print(f'Login Successful.\n{COOKIE}\n{SESSION_ID}')
+        #print(f'Login Successful.\n{COOKIE}\n{SESSION_ID}')
         VISITED_PAGES.add(login)
         return response
     return None
@@ -172,32 +175,32 @@ def validate_response(response, s, path):
     global VISITED_PAGES
     # correct_data_back = response
     response_code = str(response)[9:12].strip()
-    print(f'VALIDATING: {response_code}')
-    if not response_code:
-        print('NO RESPONSE', response)
+    #print(f'VALIDATING: {response_code}')
+    #if not response_code:
+        #print('NO RESPONSE', response)
     # if get 302 error
     if response_code == "302":
-        print(f'302 response: {response}')
+        #print(f'302 response: {response}')
         new_url = re.search(r'Location:.*', str(response))
-        print(f'NEW URL: {new_url}')
+        #print(f'NEW URL: {new_url}')
         new_url = new_url.group()[9::].strip()
         # print(new_url)
         # print(f'new_url: {new_url}')
         # new_url = new_url[9::]
-        print(f'NEW URL: {new_url}')
+        #print(f'NEW URL: {new_url}')
         soup_recv, s = send_get_request(s, new_url)
         response = validate_response(soup_recv, s, new_url)
-        print(f'302 response resolved: {response}')
+        #print(f'302 response resolved: {response}')
         VISITED_PAGES.add(new_url)
     # if get 403/404 error
     if response_code == "403" or response_code == "404":
         correct_data_back = None
     # if get 500 error
     if response_code == "500":
-        print(f'500 response: {response}')
+        #print(f'500 response: {response}')
         soup_recv, s = send_get_request(s, path)
         response = validate_response(soup_recv, s, path)
-        print(f'500 response resolved: {response}')
+        #print(f'500 response resolved: {response}')
     
     correct_data_back = response
     return correct_data_back
@@ -208,7 +211,7 @@ def crawl(username, password):
     #global VISITED_PAGES
     #Navigate to login page and send post request
     soup_recv = login(s, username, password)
-    print(f'LOGIN: {soup_recv}')
+    #print(f'LOGIN: {soup_recv}')
     links_to_search = set()
     # add logout page so we don't accidentally logout
     VISITED_PAGES.add("/accounts/logout/")
@@ -217,16 +220,16 @@ def crawl(username, password):
     if soup_recv:
         search_for_flag(soup_recv)
         new_links = get_links_on_page(soup_recv)
-        print(f'new_links1: {new_links}')
-        print(f'VISITED_PAGES1: {VISITED_PAGES}')
+        #print(f'new_links1: {new_links}')
+        #print(f'VISITED_PAGES1: {VISITED_PAGES}')
         links_to_search.update(new_links)
-        print(f'LINKS_TO_SEARCH1: {links_to_search}')
+        #print(f'LINKS_TO_SEARCH1: {links_to_search}')
         while links_to_search:
             links_seen = set()
             # BFS
             for path in links_to_search:
                 if path not in VISITED_PAGES:
-                    print(f'CHECKING PATH: {path}')
+                    #print(f'CHECKING PATH: {path}')
                     soup_recv, s = send_get_request(s, path)
                     soup_recv = validate_response(soup_recv, s, path)
                     if soup_recv:
@@ -242,7 +245,9 @@ def crawl(username, password):
             # Update links_to_search with new found links
             links_to_search.update(links_seen)
             continue
-    print(f'FINAL: {FOUND_FLAGS}')
+    #print(f'FINAL: {FOUND_FLAGS}')
+    for flag in FOUND_FLAGS:
+        print(flag)
 
 if __name__ == "__main__":
     args = parser.parse_args()
