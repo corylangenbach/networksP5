@@ -37,21 +37,24 @@ class RequestHeader:
         self.cookie = cookie
         self.session_id = session_id
 
-    def format_request(self):
-        method_line = f'{self.method} {self.path} {self.http_ver}\r\n'
-        request_fields =    f'Host: {self.host}\r\n'\
-                            f'Connection: {self.connection}\r\n'\
+       def format_request(self):
+        method_line = '{method} {path} {http_ver}\r\n'.format(method=self.method, path=self.path, http_ver=HTTP_VER)
+        request_fields =    'Host: {host}\r\n'\
+                            'Connection: {connection}\r\n'\
                             "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n"\
                             'Upgrade-Insecure-Requests: 1\r\n'\
                             'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36\r\n' \
                             'Accept-Language: en-US,en;q=0.9,fr;q=0.8\r\n'\
-                            f'Cookie: {self.cookie}; {self.session_id}'\
-
+                            'Cookie: {cookie}; {session_id}'\
+        
+        #Line above must be empty
+        request_fields = request_fields.format(host=self.host, connection=self.connection, cookie=self.cookie, session_id=self.session_id)
         if self.method == POST:
             # NOTE: Content-length should be number of chars in body e.g. len(username=...&password=...&etc)
             request_fields += '\r\nOrigin: https://fakebook.3700.network\r\n'\
-                f'Content-Length: {self.content_length}\r\n'\
+                'Content-Length: {content_length}\r\n'\
                 'Content-Type: application/x-www-form-urlencoded'
+            request_fields = request_fields.format(content_length=self.content_length)
         request_fields += "\r\n\r\n"
         return method_line + request_fields
 
