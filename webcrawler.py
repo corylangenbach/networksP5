@@ -84,7 +84,7 @@ def send_get_request(sock, path):
             get_cookie(soup)
             search_for_flag(soup)
             break
-        except ssl.SSLZeroReturnError as e:
+        except Exception as e:
             #print(f'ERROR SOCKET CLOSED: {e}. REOPENING')
             sock = connect()
     return soup, sock
